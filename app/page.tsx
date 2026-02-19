@@ -22,6 +22,7 @@ export default function Home() {
     webcamEnabled: false,
     skeletonViewEnabled: false,
     heatmapEnabled: true,
+    nightVisionEnabled: false,
     sensitivity: 50,
     decayRate: 10,
   });
@@ -33,7 +34,7 @@ export default function Home() {
   const [plasmaBalls, setPlasmaBalls] = useState<Array<{ id: string; x: number; y: number; rotation: number; createdAt: number; opacity: number; color: PlasmaBallColor }>>([]);
   const [rotation, setRotation] = useState(0);
 
-  const { videoRef, stream, isActive, error, startWebcam, stopWebcam } = useWebcam();
+  const { videoRef, stream, isActive, error, facingMode, startWebcam, stopWebcam, switchCamera } = useWebcam();
   const heatmapRendererRef = useRef<HeatmapRendererHandle>(null);
   const plasmaBallIdCounter = useRef(0);
 
@@ -310,6 +311,7 @@ export default function Home() {
                   stream={stream}
                   isActive={isActive}
                   error={error}
+                  nightVisionEnabled={appState.nightVisionEnabled}
                   onVideoReady={handleVideoReady}
                 />
                 {videoElement && (
@@ -363,6 +365,8 @@ export default function Home() {
               onStateChange={handleStateChange}
               onStartWebcam={handleStartWebcam}
               onStopWebcam={handleStopWebcam}
+              onSwitchCamera={switchCamera}
+              facingMode={facingMode}
               isDetecting={isDetecting}
             />
           </div>

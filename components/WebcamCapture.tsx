@@ -12,10 +12,11 @@ interface WebcamCaptureProps {
   stream: MediaStream | null;
   isActive: boolean;
   error: string | null;
+  nightVisionEnabled?: boolean;
   onVideoReady?: (videoElement: HTMLVideoElement | null) => void;
 }
 
-export function WebcamCapture({ videoRef, stream, isActive, error, onVideoReady }: WebcamCaptureProps) {
+export function WebcamCapture({ videoRef, stream, isActive, error, nightVisionEnabled = false, onVideoReady }: WebcamCaptureProps) {
   // Attach stream to video element
   useEffect(() => {
     const video = videoRef.current;
@@ -56,6 +57,11 @@ export function WebcamCapture({ videoRef, stream, isActive, error, onVideoReady 
     }
   }, [videoRef, onVideoReady, isActive]);
 
+  // Night vision filter: grayscale + contrast + brightness + green tint
+  const nightVisionFilter = nightVisionEnabled
+    ? 'grayscale(100%) contrast(150%) brightness(120%) sepia(100%) hue-rotate(90deg) saturate(200%)'
+    : 'none';
+
   return (
     <div className="relative w-full h-full bg-black rounded-lg overflow-hidden">
       <video
@@ -63,8 +69,11 @@ export function WebcamCapture({ videoRef, stream, isActive, error, onVideoReady 
         autoPlay
         playsInline
         muted
-        className="w-full h-full object-cover"
-        style={{ imageRendering: 'auto' }}
+        className="w-full h-full object-cover transition-all duration-300"
+        style={{ 
+          imageRendering: 'auto',
+          filter: nightVisionFilter,
+        }}
       />
       {error && (
         <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75 text-white p-4 text-center">

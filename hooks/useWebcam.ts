@@ -4,24 +4,34 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 
+type FacingMode = 'user' | 'environment';
+
 interface UseWebcamReturn {
   videoRef: React.RefObject<HTMLVideoElement>;
   stream: MediaStream | null;
   isActive: boolean;
   error: string | null;
+  facingMode: FacingMode;
   startWebcam: () => Promise<void>;
   stopWebcam: () => void;
+  switchCamera: () => Promise<void>;
 }
 
 export function useWebcam(): UseWebcamReturn {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isActive, setIsActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [facingMode, setFacingMode] = useState<FacingMode>('user');
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  const startWebcam = useCallback(async () => {
+  const startWebcamWithFacingMode = useCallback(async (mode: FacingMode) => {
     try {
       setError(null);
+
+      // Stop existing stream if any
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
 
       // Request webcam access with high quality settings
       const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -29,7 +39,7 @@ export function useWebcam(): UseWebcamReturn {
           width: { ideal: 1920, min: 1280 },
           height: { ideal: 1080, min: 720 },
           frameRate: { ideal: 30, min: 24 },
-          facingMode: 'user', // Front-facing camera
+          facingMode: mode,
           // Request high quality
           aspectRatio: { ideal: 16 / 9 },
         },
@@ -38,6 +48,7 @@ export function useWebcam(): UseWebcamReturn {
 
       setStream(mediaStream);
       setIsActive(true);
+      setFacingMode(mode);
 
       // Note: srcObject and play() are handled by WebcamCapture component
       // to avoid conflicts and race conditions
@@ -56,7 +67,11 @@ export function useWebcam(): UseWebcamReturn {
       }
       setIsActive(false);
     }
-  }, []);
+  }, [stream]);
+
+  const startWebcam = useCallback(async () => {
+    await startWebcamWithFacingMode('user');
+  }, [startWebcamWithFacingMode]);
 
   const stopWebcam = useCallback(() => {
     if (stream) {
@@ -74,6 +89,13 @@ export function useWebcam(): UseWebcamReturn {
     }
   }, [stream]);
 
+  const switchCamera = useCallback(async () => {
+    if (!isActive) return;
+    
+    const newFacingMode: FacingMode = facingMode === 'user' ? 'environment' : 'user';
+    await startWebcamWithFacingMode(newFacingMode);
+  }, [isActive, facingMode, startWebcamWithFacingMode]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -86,7 +108,9 @@ export function useWebcam(): UseWebcamReturn {
     stream,
     isActive,
     error,
+    facingMode,
     startWebcam,
     stopWebcam,
+    switchCamera,
   };
 }

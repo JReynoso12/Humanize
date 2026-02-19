@@ -58,6 +58,7 @@ export interface AppState {
   webcamEnabled: boolean;
   skeletonViewEnabled: boolean;
   heatmapEnabled: boolean;
+  nightVisionEnabled: boolean;
   sensitivity: number; // 0-100
   decayRate: number; // 0-100
 }

@@ -13,6 +13,8 @@ interface ControlsProps {
   onStateChange: (updates: Partial<AppState>) => void;
   onStartWebcam: () => void;
   onStopWebcam: () => void;
+  onSwitchCamera?: () => void;
+  facingMode?: 'user' | 'environment';
   isDetecting?: boolean;
 }
 
@@ -21,6 +23,8 @@ export function Controls({
   onStateChange,
   onStartWebcam,
   onStopWebcam,
+  onSwitchCamera,
+  facingMode = 'user',
   isDetecting = false,
 }: ControlsProps) {
   const handleToggle = (key: keyof AppState) => {
@@ -65,6 +69,21 @@ export function Controls({
             Stop Webcam
           </button>
         </div>
+        {/* Switch Camera Button - Mobile Only */}
+        {onSwitchCamera && state.webcamEnabled && (
+          <button
+            onClick={onSwitchCamera}
+            className={clsx(
+              'w-full px-4 py-2.5 sm:py-2 rounded-md font-medium transition-colors text-sm sm:text-base',
+              'touch-manipulation min-h-[44px] sm:min-h-0',
+              'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white',
+              'md:hidden' // Only show on mobile (hidden on md screens and up)
+            )}
+            aria-label={`Switch to ${facingMode === 'user' ? 'back' : 'front'} camera`}
+          >
+            {facingMode === 'user' ? '📷 Switch to Back Camera' : '📷 Switch to Front Camera'}
+          </button>
+        )}
         {isDetecting && (
           <p className="text-xs sm:text-sm text-green-400 text-center">
             ✓ Pose detection active
@@ -109,6 +128,31 @@ export function Controls({
               className={clsx(
                 'inline-block h-5 w-5 sm:h-4 sm:w-4 transform rounded-full bg-white transition-transform',
                 state.heatmapEnabled ? 'translate-x-6 sm:translate-x-6' : 'translate-x-1'
+              )}
+            />
+          </button>
+        </label>
+
+        <label className="flex items-center justify-between cursor-pointer py-1 sm:py-0">
+          <span className="text-white text-sm sm:text-base">Night Vision</span>
+          <button
+            onClick={() => handleToggle('nightVisionEnabled')}
+            disabled={!state.webcamEnabled}
+            className={clsx(
+              'relative inline-flex h-7 w-12 sm:h-6 sm:w-11 items-center rounded-full transition-colors',
+              'touch-manipulation',
+              !state.webcamEnabled
+                ? 'bg-gray-700 opacity-50 cursor-not-allowed'
+                : state.nightVisionEnabled
+                ? 'bg-green-600' 
+                : 'bg-gray-600'
+            )}
+            aria-label="Toggle night vision mode"
+          >
+            <span
+              className={clsx(
+                'inline-block h-5 w-5 sm:h-4 sm:w-4 transform rounded-full bg-white transition-transform',
+                state.nightVisionEnabled ? 'translate-x-6 sm:translate-x-6' : 'translate-x-1'
               )}
             />
           </button>
