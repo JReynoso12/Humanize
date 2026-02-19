@@ -39,26 +39,41 @@ export function useWebcam(): UseWebcamReturn {
     }
   }, []);
 
-  const startWebcamWithFacingMode = useCallback(async (mode: FacingMode, preferredDeviceId?: string) => {
+  const startWebcamWithFacingMode = useCallback(async (mode: FacingMode, preferredDeviceId?: string, retryCount = 0) => {
     try {
       setError(null);
 
-      // Stop existing stream if any
+      // Stop existing stream if any - be more thorough
       const currentStream = stream;
       if (currentStream) {
-        currentStream.getTracks().forEach((track) => {
+        // Stop all tracks and wait for them to actually stop
+        const stopPromises = currentStream.getTracks().map(track => {
           track.stop();
+          return new Promise<void>((resolve) => {
+            const checkStop = () => {
+              if (track.readyState === 'ended') {
+                resolve();
+              } else {
+                setTimeout(checkStop, 10);
+              }
+            };
+            checkStop();
+          });
         });
+        await Promise.all(stopPromises);
         setStream(null);
       }
 
       // Clear video element before switching
       if (videoRef.current) {
         videoRef.current.srcObject = null;
+        videoRef.current.pause();
       }
 
-      // Small delay to ensure previous stream is fully stopped
-      await new Promise(resolve => setTimeout(resolve, 150));
+      // Longer delay to ensure previous stream is fully released (especially important for back camera)
+      // Increase delay on retry
+      const delay = retryCount > 0 ? 500 : 300;
+      await new Promise(resolve => setTimeout(resolve, delay));
 
       // Enumerate cameras to get device IDs (more reliable on mobile)
       const cameras = await enumerateCameras();
@@ -66,13 +81,25 @@ export function useWebcam(): UseWebcamReturn {
       let constraints: MediaStreamConstraints['video'];
       
       // If we have a preferred device ID (from switching), use it
+      // Use progressively simpler constraints on retry
       if (preferredDeviceId && preferredDeviceId !== '') {
-        constraints = {
-          deviceId: { ideal: preferredDeviceId },
-          width: { ideal: 1280, min: 640 },
-          height: { ideal: 720, min: 480 },
-          frameRate: { ideal: 30, min: 15 },
-        };
+        if (retryCount === 0) {
+          constraints = {
+            deviceId: { ideal: preferredDeviceId },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            frameRate: { ideal: 30 },
+          };
+        } else if (retryCount === 1) {
+          constraints = {
+            deviceId: { ideal: preferredDeviceId },
+          };
+        } else {
+          // Last resort - just device ID, no other constraints
+          constraints = {
+            deviceId: { ideal: preferredDeviceId },
+          };
+        }
       } else if (cameras.length > 1) {
         // If we have multiple cameras, find the one matching the facing mode
         // First try to find by label
@@ -101,30 +128,46 @@ export function useWebcam(): UseWebcamReturn {
 
         if (targetCamera && targetCamera.deviceId && targetCamera.deviceId !== '') {
           // Use deviceId for more reliable switching (use ideal instead of exact for better compatibility)
-          constraints = {
-            deviceId: { ideal: targetCamera.deviceId },
-            width: { ideal: 1280, min: 640 },
-            height: { ideal: 720, min: 480 },
-            frameRate: { ideal: 30, min: 15 },
-          };
+          if (retryCount === 0) {
+            constraints = {
+              deviceId: { ideal: targetCamera.deviceId },
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              frameRate: { ideal: 30 },
+            };
+          } else {
+            constraints = {
+              deviceId: { ideal: targetCamera.deviceId },
+            };
+          }
           currentDeviceIdRef.current = targetCamera.deviceId;
         } else {
           // Fallback: use facingMode constraint
-          constraints = {
-            facingMode: mode,
-            width: { ideal: 1280, min: 640 },
-            height: { ideal: 720, min: 480 },
-            frameRate: { ideal: 30, min: 15 },
-          };
+          if (retryCount === 0) {
+            constraints = {
+              facingMode: mode,
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            };
+          } else {
+            constraints = {
+              facingMode: mode,
+            };
+          }
         }
       } else {
         // Single camera or can't enumerate - use facingMode
-        constraints = {
-          facingMode: mode,
-          width: { ideal: 1280, min: 640 },
-          height: { ideal: 720, min: 480 },
-          frameRate: { ideal: 30, min: 15 },
-        };
+        if (retryCount === 0) {
+          constraints = {
+            facingMode: mode,
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          };
+        } else {
+          constraints = {
+            facingMode: mode,
+          };
+        }
       }
 
       // Request webcam access
@@ -150,33 +193,52 @@ export function useWebcam(): UseWebcamReturn {
       if (err instanceof Error) {
         if (err.name === 'NotAllowedError') {
           setError('Camera permission denied. Please allow camera access.');
+          setIsActive(false);
+          setStream(null);
         } else if (err.name === 'NotFoundError') {
           setError('No camera found. Please connect a camera.');
+          setIsActive(false);
+          setStream(null);
+        } else if (err.name === 'NotReadableError') {
+          // Camera is in use or not available - try retry with simpler constraints
+          if (retryCount < 2) {
+            console.log(`Retrying camera access (attempt ${retryCount + 1})...`);
+            // Wait a bit longer before retry
+            await new Promise(resolve => setTimeout(resolve, 500));
+            return startWebcamWithFacingMode(mode, preferredDeviceId, retryCount + 1);
+          } else {
+            setError('Camera is busy or not available. Please close other apps using the camera and try again.');
+            setIsActive(false);
+            setStream(null);
+          }
         } else if (err.name === 'OverconstrainedError' || err.name === 'ConstraintNotSatisfiedError') {
           // Try with more lenient constraints
-          try {
-            const fallbackStream = await navigator.mediaDevices.getUserMedia({
-              video: {
-                facingMode: mode,
-              },
-              audio: false,
-            });
-            setStream(fallbackStream);
-            setIsActive(true);
-            setFacingMode(mode);
-            setError(null);
-            return;
-          } catch (fallbackErr) {
+          if (retryCount < 2) {
+            console.log(`Retrying with simpler constraints (attempt ${retryCount + 1})...`);
+            await new Promise(resolve => setTimeout(resolve, 300));
+            return startWebcamWithFacingMode(mode, preferredDeviceId, retryCount + 1);
+          } else {
             setError(`Camera error: ${err.message}. Back camera may not be available.`);
+            setIsActive(false);
+            setStream(null);
           }
         } else {
-          setError(`Camera error: ${err.message}`);
+          // For other errors, try one retry with minimal constraints
+          if (retryCount < 1) {
+            console.log(`Retrying camera access after error (attempt ${retryCount + 1})...`);
+            await new Promise(resolve => setTimeout(resolve, 400));
+            return startWebcamWithFacingMode(mode, preferredDeviceId, retryCount + 1);
+          } else {
+            setError(`Camera error: ${err.message}`);
+            setIsActive(false);
+            setStream(null);
+          }
         }
       } else {
         setError('Failed to access webcam');
+        setIsActive(false);
+        setStream(null);
       }
-      setIsActive(false);
-      setStream(null);
     }
   }, [stream, enumerateCameras]);
 
@@ -204,6 +266,8 @@ export function useWebcam(): UseWebcamReturn {
     if (!isActive) return;
     
     try {
+      setError(null);
+      
       // Get available cameras
       const cameras = await enumerateCameras();
       
@@ -220,10 +284,11 @@ export function useWebcam(): UseWebcamReturn {
       const newFacingMode: FacingMode = facingMode === 'user' ? 'environment' : 'user';
       
       // If we found another camera, use its device ID, otherwise use facingMode
+      // Start with retry count 0 - the function will retry automatically if needed
       if (otherCamera && otherCamera.deviceId) {
-        await startWebcamWithFacingMode(newFacingMode, otherCamera.deviceId);
+        await startWebcamWithFacingMode(newFacingMode, otherCamera.deviceId, 0);
       } else {
-        await startWebcamWithFacingMode(newFacingMode);
+        await startWebcamWithFacingMode(newFacingMode, undefined, 0);
       }
     } catch (err) {
       console.error('Error switching camera:', err);
