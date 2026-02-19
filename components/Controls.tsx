@@ -32,20 +32,21 @@ export function Controls({
   };
 
   return (
-    <div className="bg-gray-800 rounded-lg p-4 space-y-4">
-      <h2 className="text-xl font-semibold text-white mb-4">Controls</h2>
+    <div className="bg-gray-800 rounded-lg p-3 sm:p-4 space-y-3 sm:space-y-4">
+      <h2 className="text-lg sm:text-xl font-semibold text-white mb-3 sm:mb-4">Controls</h2>
 
       {/* Webcam Controls */}
       <div className="space-y-2">
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <button
             onClick={onStartWebcam}
             disabled={state.webcamEnabled}
             className={clsx(
-              'flex-1 px-4 py-2 rounded-md font-medium transition-colors',
+              'flex-1 px-4 py-2.5 sm:py-2 rounded-md font-medium transition-colors text-sm sm:text-base',
+              'touch-manipulation min-h-[44px] sm:min-h-0',
               state.webcamEnabled
                 ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                : 'bg-green-600 hover:bg-green-700 text-white'
+                : 'bg-green-600 hover:bg-green-700 active:bg-green-800 text-white'
             )}
           >
             Start Webcam
@@ -54,55 +55,60 @@ export function Controls({
             onClick={onStopWebcam}
             disabled={!state.webcamEnabled}
             className={clsx(
-              'flex-1 px-4 py-2 rounded-md font-medium transition-colors',
+              'flex-1 px-4 py-2.5 sm:py-2 rounded-md font-medium transition-colors text-sm sm:text-base',
+              'touch-manipulation min-h-[44px] sm:min-h-0',
               !state.webcamEnabled
                 ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                : 'bg-red-600 hover:bg-red-700 text-white'
+                : 'bg-red-600 hover:bg-red-700 active:bg-red-800 text-white'
             )}
           >
             Stop Webcam
           </button>
         </div>
         {isDetecting && (
-          <p className="text-sm text-green-400 text-center">
+          <p className="text-xs sm:text-sm text-green-400 text-center">
             ✓ Pose detection active
           </p>
         )}
       </div>
 
       {/* Toggle Controls */}
-      <div className="space-y-2">
-        <label className="flex items-center justify-between cursor-pointer">
-          <span className="text-white">Skeleton View</span>
+      <div className="space-y-3 sm:space-y-2">
+        <label className="flex items-center justify-between cursor-pointer py-1 sm:py-0">
+          <span className="text-white text-sm sm:text-base">Skeleton View</span>
           <button
             onClick={() => handleToggle('skeletonViewEnabled')}
             className={clsx(
-              'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+              'relative inline-flex h-7 w-12 sm:h-6 sm:w-11 items-center rounded-full transition-colors',
+              'touch-manipulation',
               state.skeletonViewEnabled ? 'bg-blue-600' : 'bg-gray-600'
             )}
+            aria-label="Toggle skeleton view"
           >
             <span
               className={clsx(
-                'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
-                state.skeletonViewEnabled ? 'translate-x-6' : 'translate-x-1'
+                'inline-block h-5 w-5 sm:h-4 sm:w-4 transform rounded-full bg-white transition-transform',
+                state.skeletonViewEnabled ? 'translate-x-6 sm:translate-x-6' : 'translate-x-1'
               )}
             />
           </button>
         </label>
 
-        <label className="flex items-center justify-between cursor-pointer">
-          <span className="text-white">Heatmap View</span>
+        <label className="flex items-center justify-between cursor-pointer py-1 sm:py-0">
+          <span className="text-white text-sm sm:text-base">Heatmap View</span>
           <button
             onClick={() => handleToggle('heatmapEnabled')}
             className={clsx(
-              'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+              'relative inline-flex h-7 w-12 sm:h-6 sm:w-11 items-center rounded-full transition-colors',
+              'touch-manipulation',
               state.heatmapEnabled ? 'bg-blue-600' : 'bg-gray-600'
             )}
+            aria-label="Toggle heatmap view"
           >
             <span
               className={clsx(
-                'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
-                state.heatmapEnabled ? 'translate-x-6' : 'translate-x-1'
+                'inline-block h-5 w-5 sm:h-4 sm:w-4 transform rounded-full bg-white transition-transform',
+                state.heatmapEnabled ? 'translate-x-6 sm:translate-x-6' : 'translate-x-1'
               )}
             />
           </button>
@@ -112,7 +118,7 @@ export function Controls({
       {/* Slider Controls */}
       <div className="space-y-4 pt-2 border-t border-gray-700">
         <div>
-          <label className="block text-white mb-2">
+          <label className="block text-white mb-2 text-sm sm:text-base">
             Motion Sensitivity: {state.sensitivity}%
           </label>
           <input
@@ -123,7 +129,8 @@ export function Controls({
             onChange={(e) =>
               handleSliderChange('sensitivity', parseInt(e.target.value))
             }
-            className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
+            className="w-full h-3 sm:h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-600 touch-manipulation"
+            style={{ WebkitAppearance: 'none' }}
           />
           <div className="flex justify-between text-xs text-gray-400 mt-1">
             <span>Less Sensitive</span>
@@ -132,7 +139,7 @@ export function Controls({
         </div>
 
         <div>
-          <label className="block text-white mb-2">
+          <label className="block text-white mb-2 text-sm sm:text-base">
             Heat Decay Rate: {state.decayRate}%
           </label>
           <input
@@ -143,7 +150,8 @@ export function Controls({
             onChange={(e) =>
               handleSliderChange('decayRate', parseInt(e.target.value))
             }
-            className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
+            className="w-full h-3 sm:h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-600 touch-manipulation"
+            style={{ WebkitAppearance: 'none' }}
           />
           <div className="flex justify-between text-xs text-gray-400 mt-1">
             <span>Slow Decay</span>

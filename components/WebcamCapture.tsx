@@ -64,7 +64,7 @@ export function WebcamCapture({ videoRef, stream, isActive, error, onVideoReady 
         playsInline
         muted
         className="w-full h-full object-cover"
-        style={{ imageRendering: 'high-quality' }}
+        style={{ imageRendering: 'auto' }}
       />
       {error && (
         <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75 text-white p-4 text-center">
